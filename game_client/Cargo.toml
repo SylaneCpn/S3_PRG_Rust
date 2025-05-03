@@ -1,0 +1,18 @@
+[package]
+name = "game_client"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+strip = "debuginfo" # should be "symbols" but not supported on MacOS
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+

@@ -4,7 +4,6 @@ fn main() {
     string_and_args();
 }
 
-
 pub fn count_and_compute() {
     for i in 0..20 {
         let value = i as f32 * 0.1 * std::f32::consts::PI;

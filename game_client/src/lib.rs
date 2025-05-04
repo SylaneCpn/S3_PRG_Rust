@@ -1,6 +1,10 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-use std::{io::{BufRead, BufReader, ErrorKind, Write}, net::TcpStream, path::Path};
+use std::{
+    io::{BufRead, BufReader, ErrorKind, Write},
+    net::TcpStream,
+    path::Path,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -55,12 +59,7 @@ fn game_client_update(
     let mut screen = Screen {
         width: w as usize,
         height: h as usize,
-        pixels: unsafe {
-            std::slice::from_raw_parts_mut(
-                c_screen as *mut Color,
-                (w * h) as usize,
-            )
-        },
+        pixels: unsafe { std::slice::from_raw_parts_mut(c_screen as *mut Color, (w * h) as usize) },
     };
     let app = unsafe { &mut *(c_app as *mut Application) };
     let status = update_application(
@@ -102,13 +101,13 @@ enum UpdateStatus {
     Quit,
 }
 
-#[derive(Debug, Clone, Copy , Serialize , Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 struct Point {
     x: i32,
     y: i32,
 }
 
-#[derive(Debug, Clone, Copy ,Serialize , Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 struct Color {
     r: u8,
     g: u8,
@@ -118,41 +117,38 @@ struct Color {
 #[derive(Debug)]
 struct Application {
     status: UpdateStatus,
-    image : Image,
-    position : Point,
-    input : BufReader<TcpStream>,
-    output : TcpStream,
+    image: Image,
+    position: Point,
+    input: BufReader<TcpStream>,
+    output: TcpStream,
     //id : usize,
-    players : Vec<Player>
+    players: Vec<Player>,
 }
 
-#[derive(Debug , Serialize , Deserialize ,Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Image {
-    width : usize,
-    height : usize,
-    pixels : Vec<Color>
+    width: usize,
+    height: usize,
+    pixels: Vec<Color>,
 }
 
-
-#[derive(Debug , Serialize , Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Player {
-    id : usize,
-    image : Image,
-    position : Point
-
+    id: usize,
+    image: Image,
+    position: Point,
 }
 
-#[derive(Debug , Serialize , Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SelfData {
-    id : usize,
-    position : Point
+    id: usize,
+    position: Point,
 }
-
 
 impl Image {
-    fn load<P>(path : P) -> Result<Self , Box<dyn std::error::Error>> 
-    where 
-        P : AsRef<Path>
+    fn load<P>(path: P) -> Result<Self, Box<dyn std::error::Error>>
+    where
+        P: AsRef<Path>,
     {
         let content = std::fs::read_to_string(path)?;
         let mut words = content
@@ -161,36 +157,39 @@ impl Image {
             .map(|l| l.find('#').map_or(l, |pos| &l[0..pos]))
             .flat_map(|l| l.split_whitespace())
             .filter(|w| !w.is_empty());
-        
+
         //Extract format
         let _p3 = match words.next().ok_or("Invalid Format")? {
             "P3" => Ok("P3"),
-            _ => Err("Invalid Format")
+            _ => Err("Invalid Format"),
         }?;
 
         //Extract width
         let width = words.next().ok_or("Invalid Format")?.parse::<usize>()?;
-        
+
         //Extract height
         let height = words.next().ok_or("Invalid Format")?.parse::<usize>()?;
 
         //Extract maximul value
         let _max_val = words.next().ok_or("Invalid Format")?.parse::<u8>()?;
 
-        let mut pixels : Vec<Color> = Vec::new();
-        
+        let mut pixels: Vec<Color> = Vec::new();
+
         for _ in 0..width * height {
             let r = words.next().ok_or("Invalid Format")?.parse::<u8>()?;
             let g = words.next().ok_or("Invalid Format")?.parse::<u8>()?;
             let b = words.next().ok_or("Invalid Format")?.parse::<u8>()?;
             pixels.push(Color { r, g, b });
         }
-        
-        Ok(Image { width, height, pixels })
 
+        Ok(Image {
+            width,
+            height,
+            pixels,
+        })
     }
 
-    fn draw(&self, screen : &mut Screen , position : Point , transparency : Option<Color>) {
+    fn draw(&self, screen: &mut Screen, position: Point, transparency: Option<Color>) {
         let p0 = Point {
             x: position.x.clamp(0, screen.width as i32),
             y: position.y.clamp(0, screen.height as i32),
@@ -210,27 +209,26 @@ impl Image {
 
             match transparency {
                 None => {
-                        for (d,s) in dst.iter_mut().zip(src.iter()) {
-                            d.r = s.r;
-                            d.g = s.g;
-                            d.b = s.b;
-                        }
+                    for (d, s) in dst.iter_mut().zip(src.iter()) {
+                        d.r = s.r;
+                        d.g = s.g;
+                        d.b = s.b;
                     }
+                }
 
                 Some(tr) => {
-                    for (d,s) in dst.iter_mut().zip(src.iter()) {
+                    for (d, s) in dst.iter_mut().zip(src.iter()) {
                         if !((s.r == tr.r) && (s.g == tr.g) && (s.b == tr.b)) {
                             d.r = s.r;
                             d.g = s.g;
                             d.b = s.b;
                         }
                     }
-                } 
-            
+                }
             }
-            
+
             // assign to each Color of `dst` the corresponding Color from `src`
-        
+
             i_idx += self.width;
             s_idx += screen.width;
         }
@@ -249,8 +247,8 @@ fn init_application(
     *dt = 1.0 / 30.0;
     println!("{}×{}@{:.3}", width, height, dt);
     let image = match args.get(2) {
-        Some(path ) => Image::load(*path),
-        _ => Image::load("data/cat01.ppm")
+        Some(path) => Image::load(*path),
+        _ => Image::load("data/cat01.ppm"),
     }?;
     let addr = *args.get(3).unwrap_or(&"192.168.181.86");
     let port = *args.get(4).unwrap_or(&"8000");
@@ -259,18 +257,17 @@ fn init_application(
     println!("connecting to server {full_addr}");
 
     let stream = TcpStream::connect(full_addr)?;
-    println!("connected to {:?}",stream.peer_addr()?);
+    println!("connected to {:?}", stream.peer_addr()?);
     let mut output = stream.try_clone()?;
     let mut input = BufReader::new(stream);
 
     println!("Sending image data to server...");
-    output.write_all(format!("{}\n",serde_json::to_string(&image)?).as_bytes())?;
+    output.write_all(format!("{}\n", serde_json::to_string(&image)?).as_bytes())?;
 
     println!("Recieving id from server...");
     let mut self_data_str = String::new();
     input.read_line(&mut self_data_str)?;
     let self_data = serde_json::from_str::<SelfData>(&self_data_str)?;
-
 
     let id = self_data.id;
     println!("client id = {id}...");
@@ -278,12 +275,12 @@ fn init_application(
 
     let mut app = Application {
         status: UpdateStatus::GoOn,
-        image : image,
+        image,
         position,
         input,
         output,
         //id,
-        players : Vec::new()
+        players: Vec::new(),
     };
 
     get_players_data(&mut app)?;
@@ -329,11 +326,7 @@ fn update_application(
     Ok(app.status)
 }
 
-fn handle_event(
-    app: &mut Application,
-    evt: &str,
-    key: &str,
-) -> Option<Point> {
+fn handle_event(app: &mut Application, evt: &str, key: &str) -> Option<Point> {
     let mut motion = None;
     match evt {
         "C" => app.status = UpdateStatus::Redraw,
@@ -352,10 +345,7 @@ fn handle_event(
     motion
 }
 
-fn redraw_if_needed(
-    app: &Application,
-    screen: &mut Screen,
-) {
+fn redraw_if_needed(app: &Application, screen: &mut Screen) {
     if let UpdateStatus::Redraw = app.status {
         // for c in screen.pixels.iter_mut() {
         //     let (r, g, b) =
@@ -372,21 +362,20 @@ fn redraw_if_needed(
         }
 
         for player in app.players.iter() {
-            player.image.draw(screen, player.position, Some(Color { r: 0, g: 255, b: 0 }));
+            player
+                .image
+                .draw(screen, player.position, Some(Color { r: 0, g: 255, b: 0 }));
         }
 
-        app.image.draw(screen, app.position , Some(Color { r: 0, g: 255, b: 0 }));
-
-        
+        app.image
+            .draw(screen, app.position, Some(Color { r: 0, g: 255, b: 0 }));
     }
 }
 
 fn read_lines_nonblocking(
-    input: &mut BufReader<TcpStream>
+    input: &mut BufReader<TcpStream>,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    fn inner(
-        input: &mut BufReader<TcpStream>
-    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    fn inner(input: &mut BufReader<TcpStream>) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let mut lines = Vec::new();
         loop {
             let mut line = String::new();
@@ -419,7 +408,7 @@ fn read_lines_nonblocking(
     result
 }
 
-fn handle_messages(app :&mut Application) -> Result<() , Box<dyn std::error::Error>> {
+fn handle_messages(app: &mut Application) -> Result<(), Box<dyn std::error::Error>> {
     let response = read_lines_nonblocking(&mut app.input)?;
     for line in response.into_iter() {
         if line.is_empty() {
@@ -427,23 +416,18 @@ fn handle_messages(app :&mut Application) -> Result<() , Box<dyn std::error::Err
         }
 
         if let Ok(data) = serde_json::from_str::<Point>(&line) {
-
             app.position.x += data.x;
             app.position.y += data.y;
 
             app.status = UpdateStatus::Redraw;
-        }
-
-        else {
+        } else {
             println!("{line}");
         }
     }
     Ok(())
 }
 
-
-
-fn get_players_data(app : &mut Application) -> Result<() , Box<dyn std::error::Error>> {
+fn get_players_data(app: &mut Application) -> Result<(), Box<dyn std::error::Error>> {
     let response = read_lines_nonblocking(&mut app.input)?;
     let mut players = Vec::new();
     for line in response.into_iter() {
@@ -452,13 +436,10 @@ fn get_players_data(app : &mut Application) -> Result<() , Box<dyn std::error::E
         }
 
         if let Ok(data) = serde_json::from_str::<Player>(&line) {
-
             players.push(data);
 
             app.status = UpdateStatus::Redraw;
-        }
-
-        else {
+        } else {
             println!("{line}");
         }
     }

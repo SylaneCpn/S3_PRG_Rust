@@ -1,0 +1,1 @@
+C:\Users\sylan\Documents\Rust\S3_PRG_Rust\modbus_client\target\debug\modbus_client.exe: C:\Users\sylan\Documents\Rust\S3_PRG_Rust\modbus_client\src\main.rs C:\Users\sylan\Documents\Rust\S3_PRG_Rust\modbus_client\src\modbus_utils.rs C:\Users\sylan\Documents\Rust\S3_PRG_Rust\modbus_client\src\utils.rs

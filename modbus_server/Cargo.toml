@@ -1,0 +1,8 @@
+[package]
+name = "modbus_server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rmodbus = ">=0"
+
